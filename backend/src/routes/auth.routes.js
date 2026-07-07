@@ -42,6 +42,9 @@ router.post("/login", auditLogger("auth.login"), validate(loginSchema), login);
 router.post("/refresh", auditLogger("auth.refresh"), validate(refreshSchema), refresh);
 router.post("/logout", authenticate, auditLogger("auth.logout", { logSuccess: true }), validate(logoutSchema), logout);
 router.get("/me", authenticate, auditLogger("auth.me"), me);
+router.get("/csrf-token", (req, res) => {
+  res.status(200).json({ csrfToken: req.csrfToken ? req.csrfToken() : null });
+});
 router.post("/2fa/setup", authenticate, auditLogger("auth.2fa.setup", { logSuccess: true }), setup2FaController);
 router.post("/2fa/verify", authenticate, auditLogger("auth.2fa.verify", { logSuccess: true }), validate(verifyTwoFaSchema), verify2FaController);
 router.post("/2fa/disable", authenticate, auditLogger("auth.2fa.disable", { logSuccess: true }), disable2FaController);

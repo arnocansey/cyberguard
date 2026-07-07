@@ -1,4 +1,4 @@
-﻿import { StatusCodes } from "http-status-codes";
+import { StatusCodes } from "http-status-codes";
 import { recordError } from "../config/metrics.js";
 
 export const notFoundHandler = (req, res) => {
@@ -14,6 +14,14 @@ export const errorHandler = (err, req, res, next) => {
   if (err?.code === "P1001") {
     return res.status(StatusCodes.SERVICE_UNAVAILABLE).json({
       message: "Database is unreachable. Check DATABASE_URL/network and try again.",
+      requestId: req.requestId
+    });
+  }
+
+  if (err?.code === "EBADCSRFTOKEN") {
+    return res.status(StatusCodes.FORBIDDEN).json({
+      message: "Invalid CSRF token",
+      code: "EBADCSRFTOKEN",
       requestId: req.requestId
     });
   }
