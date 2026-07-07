@@ -1,5 +1,6 @@
-﻿import "./globals.css";
+import "./globals.css";
 import Script from "next/script";
+import { ToastProvider } from "../context/ToastContext";
 
 export const metadata = {
   title: "AI Cybersecurity Threat Detection Platform",
@@ -26,7 +27,9 @@ export default function RootLayout({ children }) {
         <Script id="theme-init" strategy="beforeInteractive">
           {themeInitScript}
         </Script>
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

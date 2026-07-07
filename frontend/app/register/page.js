@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthShell from "../../components/AuthShell";
 import api from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
@@ -13,6 +14,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const toast = useToast();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -39,9 +41,12 @@ export default function RegisterPage() {
         password,
         role: "SECURITY_ANALYST"
       });
+      toast.success("Account created successfully! Please sign in.");
       router.push("/login");
     } catch (err) {
-      setError(err?.response?.data?.message || "Registration failed");
+      const msg = err?.response?.data?.message || "Registration failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

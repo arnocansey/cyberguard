@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthShell from "../../components/AuthShell";
 import api from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const toast = useToast();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -30,9 +32,12 @@ export default function LoginPage() {
       });
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
+      toast.success("Login successful! Welcome back.");
       router.push("/dashboard");
     } catch (err) {
-      setError(err?.response?.data?.message || "Invalid credentials");
+      const msg = err?.response?.data?.message || "Invalid credentials";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

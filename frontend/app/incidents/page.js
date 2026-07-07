@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import AppShell from "../../components/AppShell";
 import api from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 const STATUS_OPTIONS = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 
@@ -21,6 +22,7 @@ const decodeUserId = () => {
 function IncidentsPageContent() {
   const searchParams = useSearchParams();
   const preselectedAlertId = searchParams.get("alertId") || "";
+  const toast = useToast();
 
   const [incidents, setIncidents] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -83,9 +85,12 @@ function IncidentsPageContent() {
       await api.post("/incidents", { alertId: selectedAlertId, note: createNote || undefined });
       setSelectedAlertId("");
       setCreateNote("");
+      toast.success("Incident created successfully!");
       await loadAll();
     } catch (err) {
-      setError(err?.response?.data?.message || "Failed to create incident");
+      const msg = err?.response?.data?.message || "Failed to create incident";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -119,22 +124,38 @@ function IncidentsPageContent() {
       setBusyId(incidentId);
       await api.patch(`/incidents/${incidentId}`, payload);
       setDrafts((prev) => ({ ...prev, [incidentId]: { status: payload.status || d.status, resolution: "", note: "" } }));
+      
+      if (mode === "assign_me") {
+        toast.success("Incident assigned to you!");
+      } else if (mode === "close") {
+        toast.success("Incident closed successfully!");
+      } else {
+        toast.success("Incident updated successfully!");
+      }
+
       await loadIncidents();
     } catch (err) {
-      setError(err?.response?.data?.message || "Failed to update incident");
+      const msg = err?.response?.data?.message || "Failed to update incident";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusyId("");
     }
   };
 
   const downloadReport = async (reportId) => {
-    const response = await api.get(`/reports/${reportId}/download`, { responseType: "blob" });
-    const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${reportId}.pdf`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    try {
+      const response = await api.get(`/reports/${reportId}/download`, { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${reportId}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Incident report downloaded!");
+    } catch (err) {
+      toast.error("Failed to download report");
+    }
   };
 
   return (
