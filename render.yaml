@@ -17,7 +17,6 @@ services:
     env: docker
     dockerContext: backend
     dockerfilePath: Dockerfile
-    port: 5000
     envVars:
       # Database connection (User inputs Neon URL during blueprint deployment)
       - key: DATABASE_URL
