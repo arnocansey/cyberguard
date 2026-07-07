@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [layoutForm, setLayoutForm] = useState({ name: "", roleScope: "", teamScope: "" });
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [newPanel, setNewPanel] = useState({ title: "", query: "", vizType: "METRIC" });
   const [dragId, setDragId] = useState("");
 
@@ -33,6 +34,7 @@ export default function DashboardPage() {
 
   const loadAll = async () => {
     try {
+      setLoading(true);
       setError("");
       const [panelRes, layoutRes] = await Promise.all([
         api.get("/dashboard/panels"),
@@ -44,6 +46,8 @@ export default function DashboardPage() {
       await loadPanelData(list);
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to load dashboard");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -139,49 +143,66 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {panels.map((panel) => {
-          const data = panelData[panel.id];
-          return (
-            <section
-              key={panel.id}
-              draggable
-              onDragStart={() => setDragId(panel.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => onDrop(panel.id)}
-              className="glass rounded-lg p-4"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">{panel.title}</h3>
-                <span className="rounded bg-white/10 px-2 py-1 text-xs">{panel.vizType}</span>
+        {loading ? (
+          Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="glass rounded-lg p-4 animate-pulse">
+              <div className="flex justify-between mb-2">
+                <div className="h-4 w-32 bg-white/10 rounded" />
+                <div className="h-4 w-12 bg-white/10 rounded" />
               </div>
-
-              <div className="mb-2 text-xs text-slate-400">{panel.query}</div>
-
-              {panel.vizType === "METRIC" && <div className="text-4xl font-bold text-orange-400">{data?.total ?? "..."}</div>}
-
-              {panel.vizType !== "METRIC" && (
-                <div className="max-h-64 overflow-auto text-xs">
-                  <table className="w-full">
-                    <thead>
-                      <tr>
-                        <th className="text-left">Label</th>
-                        <th className="text-left">Count</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(data?.bySource || []).map((r) => (
-                        <tr key={r.source}>
-                          <td>{r.source || "unknown"}</td>
-                          <td>{r._count._all}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="h-3 w-48 bg-white/5 rounded mb-4" />
+              <div className="h-10 w-24 bg-white/10 rounded mb-2" />
+              <div className="space-y-2 mt-4">
+                <div className="h-3 bg-white/5 rounded w-full" />
+                <div className="h-3 bg-white/5 rounded w-5/6" />
+              </div>
+            </div>
+          ))
+        ) : (
+          panels.map((panel) => {
+            const data = panelData[panel.id];
+            return (
+              <section
+                key={panel.id}
+                draggable
+                onDragStart={() => setDragId(panel.id)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => onDrop(panel.id)}
+                className="glass rounded-lg p-4"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">{panel.title}</h3>
+                  <span className="rounded bg-white/10 px-2 py-1 text-xs">{panel.vizType}</span>
                 </div>
-              )}
-            </section>
-          );
-        })}
+
+                <div className="mb-2 text-xs text-slate-400">{panel.query}</div>
+
+                {panel.vizType === "METRIC" && <div className="text-4xl font-bold text-orange-400">{data?.total ?? "..."}</div>}
+
+                {panel.vizType !== "METRIC" && (
+                  <div className="max-h-64 overflow-auto text-xs">
+                    <table className="w-full">
+                      <thead>
+                        <tr>
+                          <th className="text-left">Label</th>
+                          <th className="text-left">Count</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(data?.bySource || []).map((r) => (
+                          <tr key={r.source}>
+                            <td>{r.source || "unknown"}</td>
+                            <td>{r._count._all}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            );
+          })
+        )}
       </div>
     </AppShell>
   );

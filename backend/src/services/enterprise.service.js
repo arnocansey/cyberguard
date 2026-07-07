@@ -1,5 +1,4 @@
 import { prisma } from "../config/prisma.js";
-import { readJsonStore, writeJsonStore } from "../utils/json-store.js";
 
 const SOAR_PLAYBOOKS = [
   {
@@ -13,8 +12,6 @@ const SOAR_PLAYBOOKS = [
     steps: ["Lock targeted account", "Enforce password reset", "Enable temporary geo/IP restriction"]
   }
 ];
-
-const scoped = (items, tenantId) => (items || []).filter((i) => (i.tenantId || "default") === tenantId);
 
 export const listSoarPlaybooks = async () => SOAR_PLAYBOOKS;
 
@@ -31,20 +28,16 @@ export const runSoarPlaybook = async ({ playbookId, alertId, targetIp, tenantId,
 
   const resolvedIp = targetIp || alert?.threat?.log?.ipAddress || null;
 
-  const execution = {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    playbookId,
-    alertId: alertId || null,
-    tenantId,
-    targetIp: resolvedIp,
-    stepsExecuted: playbook.steps,
-    status: "COMPLETED",
-    executedAt: new Date().toISOString()
-  };
-
-  const store = await readJsonStore("soar-executions.json", []);
-  store.push(execution);
-  await writeJsonStore("soar-executions.json", store);
+  const execution = await prisma.soarExecution.create({
+    data: {
+      playbookId,
+      alertId: alertId || null,
+      tenantId,
+      targetIp: resolvedIp,
+      stepsExecuted: playbook.steps,
+      status: "COMPLETED"
+    }
+  });
 
   await prisma.auditLog.create({
     data: {
@@ -59,25 +52,38 @@ export const runSoarPlaybook = async ({ playbookId, alertId, targetIp, tenantId,
 };
 
 export const listIocs = async (tenantId) => {
-  const store = await readJsonStore("iocs.json", []);
-  return scoped(store, tenantId);
+  return prisma.ioc.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" }
+  });
 };
 
 export const ingestIocs = async ({ tenantId, indicators = [], source = "manual", actorUserId }) => {
   const normalized = (indicators || [])
     .map((v) => String(v || "").trim())
-    .filter(Boolean)
-    .map((value) => ({
-      id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    .filter(Boolean);
+
+  if (normalized.length === 0) {
+    return { ingested: 0, items: [] };
+  }
+
+  await prisma.ioc.createMany({
+    data: normalized.map((value) => ({
       value,
       source,
-      tenantId,
-      createdAt: new Date().toISOString()
-    }));
+      tenantId
+    }))
+  });
 
-  const store = await readJsonStore("iocs.json", []);
-  store.push(...normalized);
-  await writeJsonStore("iocs.json", store);
+  const createdItems = await prisma.ioc.findMany({
+    where: {
+      tenantId,
+      source,
+      value: { in: normalized }
+    },
+    orderBy: { createdAt: "desc" },
+    take: normalized.length
+  });
 
   await prisma.auditLog.create({
     data: {
@@ -88,7 +94,7 @@ export const ingestIocs = async ({ tenantId, indicators = [], source = "manual",
     }
   });
 
-  return { ingested: normalized.length, items: normalized };
+  return { ingested: normalized.length, items: createdItems };
 };
 
 export const matchIocs = async (tenantId) => {
@@ -167,25 +173,23 @@ export const getUebaAnomalies = async (tenantId) => {
 };
 
 export const listAssets = async (tenantId) => {
-  const store = await readJsonStore("assets.json", []);
-  return scoped(store, tenantId);
+  return prisma.asset.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" }
+  });
 };
 
 export const createAsset = async ({ tenantId, hostname, ipAddress, owner, criticality = "MEDIUM", tags = [] }) => {
-  const store = await readJsonStore("assets.json", []);
-  const asset = {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    tenantId,
-    hostname,
-    ipAddress,
-    owner,
-    criticality,
-    tags,
-    createdAt: new Date().toISOString()
-  };
-  store.push(asset);
-  await writeJsonStore("assets.json", store);
-  return asset;
+  return prisma.asset.create({
+    data: {
+      tenantId,
+      hostname,
+      ipAddress,
+      owner,
+      criticality,
+      tags
+    }
+  });
 };
 
 export const getComplianceOverview = async (tenantId) => {
@@ -233,41 +237,35 @@ export const getComplianceOverview = async (tenantId) => {
 };
 
 export const listReportSchedules = async (tenantId) => {
-  const store = await readJsonStore("report-schedules.json", []);
-  return scoped(store, tenantId);
+  return prisma.reportSchedule.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" }
+  });
 };
 
 export const createReportSchedule = async ({ tenantId, name, cadence, recipients = [], query = "" }) => {
-  const store = await readJsonStore("report-schedules.json", []);
-  const schedule = {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    tenantId,
-    name,
-    cadence,
-    recipients,
-    query,
-    enabled: true,
-    createdAt: new Date().toISOString()
-  };
-  store.push(schedule);
-  await writeJsonStore("report-schedules.json", store);
-  return schedule;
+  return prisma.reportSchedule.create({
+    data: {
+      tenantId,
+      name,
+      cadence,
+      recipients,
+      query,
+      enabled: true
+    }
+  });
 };
 
 export const submitMlFeedback = async ({ tenantId, actorUserId, threatId, expectedLabel, notes }) => {
-  const store = await readJsonStore("ml-feedback.json", []);
-  const entry = {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    tenantId,
-    actorUserId,
-    threatId,
-    expectedLabel,
-    notes,
-    createdAt: new Date().toISOString()
-  };
-  store.push(entry);
-  await writeJsonStore("ml-feedback.json", store);
-  return entry;
+  return prisma.mlFeedback.create({
+    data: {
+      tenantId,
+      actorUserId,
+      threatId,
+      expectedLabel,
+      notes
+    }
+  });
 };
 
 export const getMlDrift = async (tenantId) => {
@@ -296,24 +294,26 @@ export const getMlDrift = async (tenantId) => {
 };
 
 export const listRuleVersions = async (ruleId) => {
-  const store = await readJsonStore("detection-rule-versions.json", {});
-  return store[ruleId] || [];
+  return prisma.detectionRuleVersion.findMany({
+    where: { ruleId },
+    orderBy: { version: "asc" }
+  });
 };
 
 export const addRuleVersion = async ({ ruleId, actorUserId, query, notes, severity }) => {
-  const store = await readJsonStore("detection-rule-versions.json", {});
-  const versions = store[ruleId] || [];
-  const nextVersion = versions.length + 1;
-  const entry = {
-    version: nextVersion,
-    actorUserId,
-    query,
-    notes,
-    severity,
-    createdAt: new Date().toISOString()
-  };
-  versions.push(entry);
-  store[ruleId] = versions;
-  await writeJsonStore("detection-rule-versions.json", store);
-  return entry;
+  const count = await prisma.detectionRuleVersion.count({
+    where: { ruleId }
+  });
+  const nextVersion = count + 1;
+
+  return prisma.detectionRuleVersion.create({
+    data: {
+      ruleId,
+      version: nextVersion,
+      actorUserId,
+      query,
+      notes,
+      severity
+    }
+  });
 };

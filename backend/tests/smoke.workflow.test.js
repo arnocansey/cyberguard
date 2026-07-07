@@ -1,4 +1,4 @@
-﻿import { jest } from "@jest/globals";
+import { jest } from "@jest/globals";
 import bcrypt from "bcryptjs";
 
 describe("smoke workflow", () => {
@@ -45,6 +45,7 @@ describe("smoke workflow", () => {
           .mockResolvedValueOnce({ id: "l2", parsedJson: { path: "/b", method: "POST", statusCode: 500 } })
       },
       threat: {
+        findFirst: jest.fn().mockResolvedValue(null),
         create: jest
           .fn()
           .mockResolvedValueOnce({ id: "t1", type: "BENIGN", severity: "LOW", confidence: 0.8 })

@@ -33,6 +33,7 @@ ai-service/.env
 backend/backups/
 backend/data/
 *.sql
+!backend/prisma/migrations/**/*.sql
 
 # Logs
 npm-debug.log*

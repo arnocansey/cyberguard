@@ -313,22 +313,35 @@ export default function AdminPage() {
 
           <div className="mb-2 text-xs opacity-75">{usersMeta.total} users found</div>
           <div className="space-y-2 text-sm">
-            {users.map((u) => (
-              <div key={u.id} className="rounded border border-white/10 p-3">
-                {userColumns.includes("fullName") && <div className="font-medium">{u.fullName}</div>}
-                {userColumns.includes("email") && <div className="text-xs opacity-80">{u.email}</div>}
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {userColumns.includes("role") && (
-                    <select className="rounded bg-black/20 p-1" value={u.role} onChange={(e) => updateRole(u.id, e.target.value)}>
-                      <option value="ADMIN">ADMIN</option>
-                      <option value="SECURITY_ANALYST">SECURITY_ANALYST</option>
-                    </select>
-                  )}
-                  {userColumns.includes("twoFaEnabled") && <span className="rounded bg-white/10 px-2 py-1 text-xs">2FA: {u.twoFaEnabled ? "On" : "Off"}</span>}
-                  {userColumns.includes("createdAt") && <span className="text-xs text-slate-400">{new Date(u.createdAt).toLocaleString()}</span>}
+            {loading ? (
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="rounded border border-white/10 p-3 animate-pulse">
+                  <div className="h-4 w-32 bg-white/10 rounded mb-2" />
+                  <div className="h-3 w-48 bg-white/5 rounded mb-3" />
+                  <div className="flex gap-2">
+                    <div className="h-6 w-24 bg-white/10 rounded" />
+                    <div className="h-6 w-16 bg-white/10 rounded" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              users.map((u) => (
+                <div key={u.id} className="rounded border border-white/10 p-3">
+                  {userColumns.includes("fullName") && <div className="font-medium">{u.fullName}</div>}
+                  {userColumns.includes("email") && <div className="text-xs opacity-80">{u.email}</div>}
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {userColumns.includes("role") && (
+                      <select className="rounded bg-black/20 p-1" value={u.role} onChange={(e) => updateRole(u.id, e.target.value)}>
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="SECURITY_ANALYST">SECURITY_ANALYST</option>
+                      </select>
+                    )}
+                    {userColumns.includes("twoFaEnabled") && <span className="rounded bg-white/10 px-2 py-1 text-xs">2FA: {u.twoFaEnabled ? "On" : "Off"}</span>}
+                    {userColumns.includes("createdAt") && <span className="text-xs text-slate-400">{new Date(u.createdAt).toLocaleString()}</span>}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <Pager page={usersMeta.page} totalPages={usersMeta.totalPages} onPrev={() => setUsersPage((p) => Math.max(1, p - 1))} onNext={() => setUsersPage((p) => Math.min(usersMeta.totalPages, p + 1))} />
@@ -366,28 +379,42 @@ export default function AdminPage() {
           </div>
 
           <div className="space-y-2 text-xs">
-            {alerts.map((a) => (
-              <div key={a.id} className="rounded border border-white/10 p-2">
-                {alertColumns.includes("message") && <div className="mb-1 font-semibold">{a.message}</div>}
-                <div className="mb-2 text-slate-400">
-                  {alertColumns.includes("severity") && <span>{a.severity} </span>}
-                  {alertColumns.includes("status") && <span>| {a.status} </span>}
-                  {alertColumns.includes("assignedTo") && <span>| {a.assignedTo?.email || "unassigned"} </span>}
-                  {alertColumns.includes("createdAt") && <span>| {new Date(a.createdAt).toLocaleString()}</span>}
+            {loading ? (
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="rounded border border-white/10 p-2 animate-pulse">
+                  <div className="h-4 w-4/5 bg-white/10 rounded mb-2" />
+                  <div className="h-3 w-1/2 bg-white/5 rounded mb-3" />
+                  <div className="flex gap-2">
+                    <div className="h-6 w-16 bg-white/10 rounded" />
+                    <div className="h-6 w-12 bg-white/10 rounded" />
+                    <div className="h-6 w-12 bg-white/10 rounded" />
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => assignAlertToMe(a.id)} className="rounded bg-blue-600 px-2 py-1 text-white">Assign me</button>
-                  <button onClick={() => triageAlert(a.id, "ACKNOWLEDGED")} className="rounded bg-yellow-500 px-2 py-1 text-black">Ack</button>
-                  <button onClick={() => triageAlert(a.id, "CLOSED")} className="rounded bg-green-600 px-2 py-1 text-white">Close</button>
-                  {a.incident ? (
-                    <span className="rounded bg-white/10 px-2 py-1">Incident: {a.incident.status}</span>
-                  ) : (
-                    <Link href={`/incidents?alertId=${a.id}`} className="rounded bg-orange-500 px-2 py-1 text-black">Create incident</Link>
-                  )}
-                  <button onClick={() => openCopilotWithAlert(a)} className="rounded border border-orange-400/60 px-2 py-1 text-orange-200">Ask Copilot</button>
+              ))
+            ) : (
+              alerts.map((a) => (
+                <div key={a.id} className="rounded border border-white/10 p-2">
+                  {alertColumns.includes("message") && <div className="mb-1 font-semibold">{a.message}</div>}
+                  <div className="mb-2 text-slate-400">
+                    {alertColumns.includes("severity") && <span>{a.severity} </span>}
+                    {alertColumns.includes("status") && <span>| {a.status} </span>}
+                    {alertColumns.includes("assignedTo") && <span>| {a.assignedTo?.email || "unassigned"} </span>}
+                    {alertColumns.includes("createdAt") && <span>| {new Date(a.createdAt).toLocaleString()}</span>}
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => assignAlertToMe(a.id)} className="rounded bg-blue-600 px-2 py-1 text-white">Assign me</button>
+                    <button onClick={() => triageAlert(a.id, "ACKNOWLEDGED")} className="rounded bg-yellow-500 px-2 py-1 text-black">Ack</button>
+                    <button onClick={() => triageAlert(a.id, "CLOSED")} className="rounded bg-green-600 px-2 py-1 text-white">Close</button>
+                    {a.incident ? (
+                      <span className="rounded bg-white/10 px-2 py-1">Incident: {a.incident.status}</span>
+                    ) : (
+                      <Link href={`/incidents?alertId=${a.id}`} className="rounded bg-orange-500 px-2 py-1 text-black">Create incident</Link>
+                    )}
+                    <button onClick={() => openCopilotWithAlert(a)} className="rounded border border-orange-400/60 px-2 py-1 text-orange-200">Ask Copilot</button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           <Pager page={alertsMeta.page} totalPages={alertsMeta.totalPages} onPrev={() => setAlertsPage((p) => Math.max(1, p - 1))} onNext={() => setAlertsPage((p) => Math.min(alertsMeta.totalPages, p + 1))} />
         </section>
@@ -495,15 +522,27 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {auditLogs.map((a) => (
-                  <tr key={a.id} className="border-t border-white/10">
-                    {auditColumns.includes("createdAt") && <td className="py-1 pr-2">{new Date(a.createdAt).toLocaleString()}</td>}
-                    {auditColumns.includes("user") && <td className="py-1 pr-2">{a.user?.email || "system"}</td>}
-                    {auditColumns.includes("action") && <td className="py-1 pr-2">{a.action}</td>}
-                    {auditColumns.includes("resource") && <td className="py-1 pr-2">{a.resource}</td>}
-                    {auditColumns.includes("ipAddress") && <td className="py-1">{a.ipAddress || "-"}</td>}
-                  </tr>
-                ))}
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, idx) => (
+                    <tr key={idx} className="border-t border-white/10 animate-pulse">
+                      {auditColumns.includes("createdAt") && <td className="py-2 pr-2"><div className="h-3 w-28 bg-white/10 rounded" /></td>}
+                      {auditColumns.includes("user") && <td className="py-2 pr-2"><div className="h-3 w-20 bg-white/10 rounded" /></td>}
+                      {auditColumns.includes("action") && <td className="py-2 pr-2"><div className="h-3 w-24 bg-white/10 rounded" /></td>}
+                      {auditColumns.includes("resource") && <td className="py-2 pr-2"><div className="h-3 w-24 bg-white/10 rounded" /></td>}
+                      {auditColumns.includes("ipAddress") && <td className="py-2"><div className="h-3 w-16 bg-white/10 rounded" /></td>}
+                    </tr>
+                  ))
+                ) : (
+                  auditLogs.map((a) => (
+                    <tr key={a.id} className="border-t border-white/10">
+                      {auditColumns.includes("createdAt") && <td className="py-1 pr-2">{new Date(a.createdAt).toLocaleString()}</td>}
+                      {auditColumns.includes("user") && <td className="py-1 pr-2">{a.user?.email || "system"}</td>}
+                      {auditColumns.includes("action") && <td className="py-1 pr-2">{a.action}</td>}
+                      {auditColumns.includes("resource") && <td className="py-1 pr-2">{a.resource}</td>}
+                      {auditColumns.includes("ipAddress") && <td className="py-1">{a.ipAddress || "-"}</td>}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -519,7 +558,11 @@ function StatCard({ label, value, loading }) {
   return (
     <div className="glass rounded-xl p-3">
       <div className="text-xs uppercase tracking-wide opacity-70">{label}</div>
-      <div className="mt-1 text-2xl font-bold">{loading ? "..." : value ?? 0}</div>
+      {loading ? (
+        <div className="mt-2 h-7 w-12 animate-pulse rounded bg-white/10" />
+      ) : (
+        <div className="mt-1 text-2xl font-bold">{value ?? 0}</div>
+      )}
     </div>
   );
 }

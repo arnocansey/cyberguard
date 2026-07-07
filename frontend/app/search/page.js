@@ -188,10 +188,10 @@ function SearchPageContent() {
       <div className="grid gap-4 lg:grid-cols-[300px_1fr_300px]">
         <aside className="glass rounded-lg p-4 text-sm">
           <h3 className="mb-3 text-xs uppercase tracking-wide text-slate-400">Facets</h3>
-          <FacetBlock title="source" rows={facets.sources.map((x) => [x.source || "unknown", x._count._all])} onPick={(v) => setParams({ q: `${query} source=${v}`.trim(), page: 1 })} />
-          <FacetBlock title="sourcetype" rows={facets.sourcetypes.map((x) => [x.sourcetype || "unknown", x._count._all])} onPick={(v) => setParams({ q: `${query} sourcetype=${v}`.trim(), page: 1 })} />
-          <FacetBlock title="host" rows={facets.hosts.map((x) => [x.host || "unknown", x._count._all])} onPick={(v) => setParams({ q: `${query} host=${v}`.trim(), page: 1 })} />
-          <FacetBlock title="severity" rows={facets.severities.map((x) => [x.severity || "unknown", x._count._all])} onPick={(v) => setParams({ severity: v, page: 1 })} />
+          <FacetBlock title="source" rows={facets.sources.map((x) => [x.source || "unknown", x._count._all])} onPick={(v) => setParams({ q: `${query} source=${v}`.trim(), page: 1 })} loading={loading} />
+          <FacetBlock title="sourcetype" rows={facets.sourcetypes.map((x) => [x.sourcetype || "unknown", x._count._all])} onPick={(v) => setParams({ q: `${query} sourcetype=${v}`.trim(), page: 1 })} loading={loading} />
+          <FacetBlock title="host" rows={facets.hosts.map((x) => [x.host || "unknown", x._count._all])} onPick={(v) => setParams({ q: `${query} host=${v}`.trim(), page: 1 })} loading={loading} />
+          <FacetBlock title="severity" rows={facets.severities.map((x) => [x.severity || "unknown", x._count._all])} onPick={(v) => setParams({ severity: v, page: 1 })} loading={loading} />
         </aside>
 
         <section className="glass rounded-lg p-4">
@@ -237,43 +237,58 @@ function SearchPageContent() {
                 </tr>
               </thead>
               <tbody>
-                {events.map((e) => {
-                  const threat = e.threats?.[0];
-                  const open = expandedId === e.id;
-                  const selected = selectedIds.includes(e.id);
-                  return (
-                    <Fragment key={e.id}>
-                      <tr className="cursor-pointer" onClick={() => setExpandedId(open ? "" : e.id)}>
-                        <td onClick={(evt) => evt.stopPropagation()}>
-                          <input type="checkbox" checked={selected} onChange={() => toggleSelected(e.id)} />
-                        </td>
-                        {columns.includes("createdAt") && <td>{new Date(e.createdAt).toLocaleString()}</td>}
-                        {columns.includes("host") && <td>{e.host || "-"}</td>}
-                        {columns.includes("source") && <td>{e.source}</td>}
-                        {columns.includes("sourcetype") && <td>{e.sourcetype || "-"}</td>}
-                        {columns.includes("statusCode") && <td>{e.statusCode ?? "-"}</td>}
-                        {columns.includes("rawPreview") && <td className="max-w-[420px] truncate">{e.raw}</td>}
-                        {columns.includes("severity") && <td>{threat?.severity || "-"}</td>}
-                      </tr>
-                      {open && (
-                        <tr>
-                          <td colSpan={columns.length + 1}>
-                            <div className="mt-2 grid gap-3 rounded border border-white/10 bg-black/20 p-3 text-xs lg:grid-cols-2">
-                              <div>
-                                <div className="mb-1 font-semibold text-slate-300">Raw Event</div>
-                                <pre className="overflow-auto whitespace-pre-wrap text-slate-200">{e.raw}</pre>
-                              </div>
-                              <div>
-                                <div className="mb-1 font-semibold text-slate-300">Full JSON</div>
-                                <pre className="overflow-auto whitespace-pre-wrap text-slate-200">{JSON.stringify(e, null, 2)}</pre>
-                              </div>
-                            </div>
+                {loading ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={idx} className="animate-pulse border-b border-white/5">
+                      <td><div className="h-4 w-4 bg-white/10 rounded" /></td>
+                      {columns.includes("createdAt") && <td className="py-3"><div className="h-4 w-28 bg-white/10 rounded" /></td>}
+                      {columns.includes("host") && <td className="py-3"><div className="h-4 w-20 bg-white/10 rounded" /></td>}
+                      {columns.includes("source") && <td className="py-3"><div className="h-4 w-24 bg-white/10 rounded" /></td>}
+                      {columns.includes("sourcetype") && <td className="py-3"><div className="h-4 w-24 bg-white/10 rounded" /></td>}
+                      {columns.includes("statusCode") && <td className="py-3"><div className="h-4 w-12 bg-white/10 rounded" /></td>}
+                      {columns.includes("rawPreview") && <td className="py-3 pr-2"><div className="h-4 w-80 bg-white/5 rounded" /></td>}
+                      {columns.includes("severity") && <td className="py-3"><div className="h-4 w-16 bg-white/10 rounded" /></td>}
+                    </tr>
+                  ))
+                ) : (
+                  events.map((e) => {
+                    const threat = e.threats?.[0];
+                    const open = expandedId === e.id;
+                    const selected = selectedIds.includes(e.id);
+                    return (
+                      <Fragment key={e.id}>
+                        <tr className="cursor-pointer" onClick={() => setExpandedId(open ? "" : e.id)}>
+                          <td onClick={(evt) => evt.stopPropagation()}>
+                            <input type="checkbox" checked={selected} onChange={() => toggleSelected(e.id)} />
                           </td>
+                          {columns.includes("createdAt") && <td>{new Date(e.createdAt).toLocaleString()}</td>}
+                          {columns.includes("host") && <td>{e.host || "-"}</td>}
+                          {columns.includes("source") && <td>{e.source}</td>}
+                          {columns.includes("sourcetype") && <td>{e.sourcetype || "-"}</td>}
+                          {columns.includes("statusCode") && <td>{e.statusCode ?? "-"}</td>}
+                          {columns.includes("rawPreview") && <td className="max-w-[420px] truncate">{e.raw}</td>}
+                          {columns.includes("severity") && <td>{threat?.severity || "-"}</td>}
                         </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
+                        {open && (
+                          <tr>
+                            <td colSpan={columns.length + 1}>
+                              <div className="mt-2 grid gap-3 rounded border border-white/10 bg-black/20 p-3 text-xs lg:grid-cols-2">
+                                <div>
+                                  <div className="mb-1 font-semibold text-slate-300">Raw Event</div>
+                                  <pre className="overflow-auto whitespace-pre-wrap text-slate-200">{e.raw}</pre>
+                                </div>
+                                <div>
+                                  <div className="mb-1 font-semibold text-slate-300">Full JSON</div>
+                                  <pre className="overflow-auto whitespace-pre-wrap text-slate-200">{JSON.stringify(e, null, 2)}</pre>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })
+                )}
               </tbody>
             </table>
             {!loading && events.length === 0 && <p className="mt-3 text-sm text-slate-400">No events match current query.</p>}
@@ -334,20 +349,27 @@ export default function SearchPage() {
   );
 }
 
-function FacetBlock({ title, rows, onPick }) {
+function FacetBlock({ title, rows, onPick, loading }) {
   return (
     <div className="mb-4">
       <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</div>
       <ul className="space-y-1">
-        {rows.map(([label, count]) => (
-          <li key={`${title}-${label}`}>
-            <button onClick={() => onPick(label)} className="flex w-full items-center justify-between rounded border border-white/10 px-2 py-1 text-left hover:bg-white/5">
-              <span className="truncate pr-2">{label}</span>
-              <span className="text-slate-300">{count}</span>
-            </button>
-          </li>
-        ))}
-        {rows.length === 0 && <li className="text-xs text-slate-500">No data</li>}
+        {loading ? (
+          Array.from({ length: 3 }).map((_, idx) => (
+            <li key={idx} className="h-7 w-full animate-pulse rounded bg-white/5" />
+          ))
+        ) : rows.length > 0 ? (
+          rows.map(([label, count]) => (
+            <li key={`${title}-${label}`}>
+              <button onClick={() => onPick(label)} className="flex w-full items-center justify-between rounded border border-white/10 px-2 py-1 text-left hover:bg-white/5">
+                <span className="truncate pr-2">{label}</span>
+                <span className="text-slate-300">{count}</span>
+              </button>
+            </li>
+          ))
+        ) : (
+          <li className="text-xs text-slate-500">No data</li>
+        )}
       </ul>
     </div>
   );

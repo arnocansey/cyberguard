@@ -27,6 +27,7 @@ function IncidentsPageContent() {
   const [selectedAlertId, setSelectedAlertId] = useState("");
   const [createNote, setCreateNote] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [saving, setSaving] = useState(false);
   const [drafts, setDrafts] = useState({});
@@ -46,7 +47,10 @@ function IncidentsPageContent() {
   };
 
   useEffect(() => {
-    loadAll().catch((err) => setError(err?.response?.data?.message || "Failed to load incident data"));
+    setLoading(true);
+    loadAll()
+      .catch((err) => setError(err?.response?.data?.message || "Failed to load incident data"))
+      .finally(() => setLoading(false));
   }, []);
 
   const availableAlerts = useMemo(() => alerts.filter((a) => !a.incident), [alerts]);
@@ -170,58 +174,82 @@ function IncidentsPageContent() {
       <div className="glass mt-4 rounded-xl p-4">
         <h3 className="mb-2 font-semibold">Incident Queue</h3>
         <ul className="space-y-3 text-sm">
-          {incidents.map((i) => {
-            const d = drafts[i.id] || { status: i.status, resolution: "", note: "" };
-            const locked = busyId === i.id;
-            return (
-              <li key={i.id} className="rounded border border-white/10 p-3">
-                <div className="mb-2 grid gap-1 text-xs text-slate-300 md:grid-cols-2">
-                  <div><span className="text-slate-400">Incident:</span> {i.id}</div>
-                  <div><span className="text-slate-400">Alert:</span> {i.alertId}</div>
-                  <div><span className="text-slate-400">Status:</span> {i.status}</div>
-                  <div><span className="text-slate-400">Assigned:</span> {i.assignedTo?.email || "unassigned"}</div>
-                  <div><span className="text-slate-400">Severity:</span> {i.alert?.severity}</div>
-                  <div><span className="text-slate-400">Threat:</span> {i.alert?.threat?.type}</div>
+          {loading ? (
+            Array.from({ length: 3 }).map((_, idx) => (
+              <li key={idx} className="rounded border border-white/10 p-3 animate-pulse">
+                <div className="mb-2 grid gap-1 md:grid-cols-2">
+                  <div className="h-4 w-4/5 bg-white/10 rounded" />
+                  <div className="h-4 w-3/4 bg-white/10 rounded" />
+                  <div className="h-4 w-1/2 bg-white/10 rounded" />
+                  <div className="h-4 w-2/3 bg-white/10 rounded" />
                 </div>
-
-                <div className="grid gap-2 md:grid-cols-3">
-                  <select
-                    className="rounded bg-black/20 p-2"
-                    value={d.status}
-                    onChange={(e) => setDraft(i.id, { status: e.target.value })}
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                  <input
-                    className="rounded bg-black/20 p-2"
-                    placeholder="Resolution"
-                    value={d.resolution}
-                    onChange={(e) => setDraft(i.id, { resolution: e.target.value })}
-                  />
-                  <input
-                    className="rounded bg-black/20 p-2"
-                    placeholder="Note"
-                    value={d.note}
-                    onChange={(e) => setDraft(i.id, { note: e.target.value })}
-                  />
+                <div className="grid gap-2 md:grid-cols-3 mt-3">
+                  <div className="h-9 bg-white/5 rounded" />
+                  <div className="h-9 bg-white/5 rounded" />
+                  <div className="h-9 bg-white/5 rounded" />
                 </div>
-
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button disabled={locked} onClick={() => applyUpdate(i.id, "assign_me")} className="rounded bg-blue-600 px-2 py-1 text-xs text-white disabled:opacity-50">Assign me</button>
-                  <button disabled={locked} onClick={() => applyUpdate(i.id, "update")} className="rounded bg-orange-500 px-2 py-1 text-xs text-black disabled:opacity-50">Save update</button>
-                  <button disabled={locked} onClick={() => applyUpdate(i.id, "close")} className="rounded bg-green-600 px-2 py-1 text-xs text-white disabled:opacity-50">Close + report</button>
-                  {i.report?.id && (
-                    <button onClick={() => downloadReport(i.report.id)} className="rounded bg-white/10 px-2 py-1 text-xs">
-                      Download PDF
-                    </button>
-                  )}
+                <div className="mt-3 flex gap-2">
+                  <div className="h-7 w-20 bg-white/10 rounded" />
+                  <div className="h-7 w-24 bg-white/10 rounded" />
+                  <div className="h-7 w-24 bg-white/10 rounded" />
                 </div>
               </li>
-            );
-          })}
-          {incidents.length === 0 && <li>No incidents yet.</li>}
+            ))
+          ) : incidents.length > 0 ? (
+            incidents.map((i) => {
+              const d = drafts[i.id] || { status: i.status, resolution: "", note: "" };
+              const locked = busyId === i.id;
+              return (
+                <li key={i.id} className="rounded border border-white/10 p-3">
+                  <div className="mb-2 grid gap-1 text-xs text-slate-300 md:grid-cols-2">
+                    <div><span className="text-slate-400">Incident:</span> {i.id}</div>
+                    <div><span className="text-slate-400">Alert:</span> {i.alertId}</div>
+                    <div><span className="text-slate-400">Status:</span> {i.status}</div>
+                    <div><span className="text-slate-400">Assigned:</span> {i.assignedTo?.email || "unassigned"}</div>
+                    <div><span className="text-slate-400">Severity:</span> {i.alert?.severity}</div>
+                    <div><span className="text-slate-400">Threat:</span> {i.alert?.threat?.type}</div>
+                  </div>
+
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <select
+                      className="rounded bg-black/20 p-2"
+                      value={d.status}
+                      onChange={(e) => setDraft(i.id, { status: e.target.value })}
+                    >
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    <input
+                      className="rounded bg-black/20 p-2"
+                      placeholder="Resolution"
+                      value={d.resolution}
+                      onChange={(e) => setDraft(i.id, { resolution: e.target.value })}
+                    />
+                    <input
+                      className="rounded bg-black/20 p-2"
+                      placeholder="Note"
+                      value={d.note}
+                      onChange={(e) => setDraft(i.id, { note: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button disabled={locked} onClick={() => applyUpdate(i.id, "assign_me")} className="rounded bg-blue-600 px-2 py-1 text-xs text-white disabled:opacity-50">Assign me</button>
+                    <button disabled={locked} onClick={() => applyUpdate(i.id, "update")} className="rounded bg-orange-500 px-2 py-1 text-xs text-black disabled:opacity-50">Save update</button>
+                    <button disabled={locked} onClick={() => applyUpdate(i.id, "close")} className="rounded bg-green-600 px-2 py-1 text-xs text-white disabled:opacity-50">Close + report</button>
+                    {i.report?.id && (
+                      <button onClick={() => downloadReport(i.report.id)} className="rounded bg-white/10 px-2 py-1 text-xs">
+                        Download PDF
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })
+          ) : (
+            <li>No incidents yet.</li>
+          )}
         </ul>
       </div>
     </AppShell>

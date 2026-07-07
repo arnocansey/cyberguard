@@ -294,3 +294,76 @@ model AuditLog {
   @@index([resource, createdAt])
 }
 
+model SoarExecution {
+  id            String   @id @default(uuid())
+  playbookId    String
+  alertId       String?
+  tenantId      String?
+  targetIp      String?
+  stepsExecuted String[]
+  status        String
+  executedAt    DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model Ioc {
+  id        String   @id @default(uuid())
+  value     String
+  source    String
+  tenantId  String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model Asset {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  hostname    String
+  ipAddress   String
+  owner       String
+  criticality String   @default("MEDIUM")
+  tags        String[]
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model ReportSchedule {
+  id         String   @id @default(uuid())
+  tenantId   String?
+  name       String
+  cadence    String
+  recipients String[]
+  query      String
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model MlFeedback {
+  id            String   @id @default(uuid())
+  tenantId      String?
+  actorUserId   String
+  threatId      String
+  expectedLabel String
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model DetectionRuleVersion {
+  id          String   @id @default(uuid())
+  ruleId      String
+  version     Int
+  actorUserId String
+  query       String
+  notes       String?
+  severity    String
+  createdAt   DateTime @default(now())
+
+  @@index([ruleId])
+}
