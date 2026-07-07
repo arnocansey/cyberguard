@@ -2,6 +2,7 @@ import axios from "axios";
 import { prisma } from "../config/prisma.js";
 import { env } from "../config/env.js";
 import { recordAiRetry, recordAiTimeout } from "../config/metrics.js";
+import { logger } from "../config/logger.js";
 
 const buildContextSnapshot = async (tenantId = "default") => {
   const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -95,7 +96,11 @@ export const chatAssist = async ({ userId, message, history = [], tenantId = "de
       context,
       degraded: false
     };
-  } catch {
+  } catch (err) {
+    logger.warn(
+      { err: err?.message || err, code: err?.code, status: err?.response?.status },
+      "AI chat assist failed, falling back to local guidance"
+    );
     return {
       modelVersion: "fallback-local",
       ...fallbackReply(context),
