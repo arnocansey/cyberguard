@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CyberGuard User Manual (Print Edition)</title>
+  <style>
+    :root { --ink: #111827; --muted: #4b5563; --line: #d1d5db; --accent: #f97316; }
+    body { font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); margin: 0; background: #fff; }
+    .page { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+    h1, h2, h3 { margin: 0 0 12px; }
+    h1 { font-size: 32px; }
+    h2 { font-size: 22px; border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-top: 28px; }
+    h3 { font-size: 18px; margin-top: 18px; }
+    p, li { font-size: 14px; line-height: 1.6; }
+    .meta { color: var(--muted); margin: 8px 0 20px; }
+    .toc { background: #f9fafb; border: 1px solid var(--line); border-radius: 8px; padding: 14px 18px; }
+    .toc a { color: #1f2937; text-decoration: none; }
+    .shot { border: 1px dashed var(--line); border-radius: 8px; padding: 10px; background: #fafafa; color: var(--muted); }
+    .badge { display: inline-block; padding: 2px 8px; border: 1px solid #fed7aa; border-radius: 999px; color: #9a3412; background: #fff7ed; font-size: 12px; }
+    .footer { margin-top: 36px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+    @media print {
+      .page { padding: 0; }
+      h2 { page-break-after: avoid; }
+      .page-break { page-break-before: always; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>CyberGuard User Manual <span class="badge">Print Edition</span></h1>
+    <p class="meta">Version 1.0 | February 2026</p>
+
+    <section class="toc">
+      <h2 style="margin-top:0;border:0;padding:0;">Table of Contents</h2>
+      <ol>
+        <li><a href="#intro">Introduction</a></li>
+        <li><a href="#access">Access and Roles</a></li>
+        <li><a href="#quick">Quick Start</a></li>
+        <li><a href="#core">Core Workflows</a></li>
+        <li><a href="#copilot">SOC Copilot</a></li>
+        <li><a href="#ops">Enterprise Operations</a></li>
+        <li><a href="#trouble">Troubleshooting</a></li>
+        <li><a href="#daily">Daily Operations Checklist</a></li>
+      </ol>
+    </section>
+
+    <h2 id="intro">1. Introduction</h2>
+    <p>CyberGuard is an AI-powered cybersecurity threat detection and incident response platform. It ingests logs, classifies threats, raises alerts, and supports full incident lifecycle management.</p>
+
+    <h2 id="access">2. Access and Roles</h2>
+    <ul>
+      <li>Admin: <code>admin@cyber.local</code> / <code>ChangeMe123!</code></li>
+      <li>Security Analyst: <code>analyst@cyber.local</code> / <code>ChangeMe123!</code></li>
+    </ul>
+    <p><strong>ADMIN</strong> has full access; <strong>SECURITY_ANALYST</strong> has SOC operational access.</p>
+
+    <h2 id="quick">3. Quick Start</h2>
+    <ol>
+      <li>Start backend, frontend, and AI service.</li>
+      <li>Log in with role-appropriate credentials.</li>
+      <li>Upload logs from the <code>Logs</code> page.</li>
+      <li>Triage detections in <code>Threats</code>.</li>
+      <li>Create and close incidents in <code>Incidents</code>.</li>
+    </ol>
+    <p class="shot">[SCREENSHOT PLACEHOLDER: Login + Dashboard]</p>
+
+    <h2 id="core" class="page-break">4. Core Workflows</h2>
+    <h3>4.1 Log Upload</h3>
+    <p>Upload Apache/Nginx/firewall logs, then review parsing and detection output.</p>
+    <p class="shot">[SCREENSHOT PLACEHOLDER: Logs upload form]</p>
+
+    <h3>4.2 Threat Monitoring</h3>
+    <p>Review severity/confidence and use one-click incident creation flow.</p>
+    <p class="shot">[SCREENSHOT PLACEHOLDER: Threat list with actions]</p>
+
+    <h3>4.3 Incident Response</h3>
+    <p>Create, assign, investigate, and close incidents to auto-generate reports.</p>
+    <p class="shot">[SCREENSHOT PLACEHOLDER: Incident queue and detail]</p>
+
+    <h3>4.4 Reports</h3>
+    <p>Download generated incident reports from the Reports module.</p>
+    <p class="shot">[SCREENSHOT PLACEHOLDER: Reports table]</p>
+
+    <h2 id="copilot">5. SOC Copilot</h2>
+    <p>Use Copilot for treatment guidance and triage support. It supports contextual prompts and streaming responses where available.</p>
+    <p class="shot">[SCREENSHOT PLACEHOLDER: Copilot chat panel]</p>
+
+    <h2 id="ops">6. Enterprise Operations</h2>
+    <ul>
+      <li>SOAR playbooks</li>
+      <li>Threat intel IOC matching</li>
+      <li>UEBA anomalies</li>
+      <li>Asset/compliance views</li>
+      <li>Report scheduling</li>
+      <li>ML feedback and drift checks</li>
+    </ul>
+
+    <h2 id="trouble">7. Troubleshooting</h2>
+    <ul>
+      <li><strong>Missing token:</strong> ensure Bearer token is attached.</li>
+      <li><strong>Forbidden:</strong> ensure account has required role.</li>
+      <li><strong>ENOTFOUND ai-service:</strong> verify AI service URL and runtime.</li>
+    </ul>
+
+    <h2 id="daily">8. Daily Operations Checklist</h2>
+    <ol>
+      <li>Review dashboard for spikes.</li>
+      <li>Triage new alerts.</li>
+      <li>Create incidents for high/critical threats.</li>
+      <li>Use Copilot for response guidance.</li>
+      <li>Close incidents with clear notes.</li>
+      <li>Review audit trail before shift close.</li>
+    </ol>
+
+    <p class="footer">CyberGuard SIEM | User Manual Print Edition</p>
+  </div>
+</body>
+</html>

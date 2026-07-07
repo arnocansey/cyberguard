@@ -1,0 +1,296 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SECURITY_ANALYST
+}
+
+enum ThreatType {
+  SQL_INJECTION
+  XSS
+  BRUTE_FORCE
+  DDOS
+  ANOMALY
+  BENIGN
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum AlertStatus {
+  NEW
+  ACKNOWLEDGED
+  CLOSED
+}
+
+enum ScheduleInterval {
+  EVERY_5M
+  EVERY_1H
+  DAILY
+}
+
+enum VisualizationType {
+  METRIC
+  LINE
+  PIE
+  TABLE
+}
+
+model User {
+  id                String         @id @default(uuid())
+  fullName          String
+  email             String         @unique
+  passwordHash      String
+  role              UserRole       @default(SECURITY_ANALYST)
+  twoFaEnabled      Boolean        @default(false)
+  twoFaConfig       TwoFaConfig?
+  refreshTokens     RefreshToken[]
+  assignedIncidents Incident[]     @relation("IncidentAssignee")
+  assignedAlerts    Alert[]        @relation("AlertAssignee")
+  notes             IncidentNote[]
+  auditLogs         AuditLog[]
+  savedSearches     SavedSearch[]
+  alertRules        AlertRule[]
+  searchJobs        SearchJob[]
+  panels            DashboardPanel[]
+  dashboardLayouts  DashboardLayout[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model TwoFaConfig {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret     String
+  tempSecret String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model Log {
+  id         String   @id @default(uuid())
+  source     String
+  sourcetype String?
+  host       String?
+  raw        String
+  parsedJson Json
+  ipAddress  String?
+  method     String?
+  path       String?
+  statusCode Int?
+  tenantId   String?
+  threats    Threat[]
+  createdAt  DateTime @default(now())
+
+  @@index([source, createdAt])
+  @@index([sourcetype, createdAt])
+  @@index([host, createdAt])
+  @@index([ipAddress])
+}
+
+model Threat {
+  id         String     @id @default(uuid())
+  logId      String
+  log        Log        @relation(fields: [logId], references: [id], onDelete: Cascade)
+  type       ThreatType
+  confidence Float
+  severity   Severity
+  alerts     Alert[]
+  createdAt  DateTime   @default(now())
+
+  @@index([type, severity, createdAt])
+}
+
+model Alert {
+  id           String      @id @default(uuid())
+  threatId      String
+  threat        Threat      @relation(fields: [threatId], references: [id], onDelete: Cascade)
+  message       String
+  severity      Severity
+  status        AlertStatus @default(NEW)
+  isRead        Boolean     @default(false)
+  assignedToId  String?
+  assignedTo    User?       @relation("AlertAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  acknowledgedAt DateTime?
+  closedAt      DateTime?
+  incident      Incident?
+  createdAt     DateTime    @default(now())
+
+  @@index([severity, createdAt])
+  @@index([status, createdAt])
+  @@index([assignedToId])
+}
+
+model Incident {
+  id           String         @id @default(uuid())
+  alertId      String         @unique
+  alert        Alert          @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo   User?          @relation("IncidentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  status       IncidentStatus @default(OPEN)
+  resolution   String?
+  closedAt     DateTime?
+  notes        IncidentNote[]
+  report       Report?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([status, createdAt])
+  @@index([assignedToId])
+}
+
+model IncidentNote {
+  id         String   @id @default(uuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  note       String
+  createdAt  DateTime @default(now())
+
+  @@index([incidentId, createdAt])
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  incidentId  String   @unique
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  fileName    String
+  storagePath String
+  generatedAt DateTime @default(now())
+}
+
+model SavedSearch {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  query       String
+  timeRange   String   @default("24h")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+model AlertRule {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  query            String
+  resultThreshold  Int      @default(1)
+  enabled          Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+model SearchJob {
+  id               String           @id @default(uuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  query            String
+  schedule         ScheduleInterval
+  resultThreshold  Int              @default(1)
+  enabled          Boolean          @default(true)
+  lastRunAt        DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([schedule, enabled])
+}
+
+model CorrelationRule {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  query       String
+  severity    Severity @default(MEDIUM)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([enabled, createdAt])
+}
+
+model DashboardPanel {
+  id          String            @id @default(uuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  query       String
+  vizType     VisualizationType
+  position    Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([userId, position])
+}
+
+
+model DashboardLayout {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  roleScope UserRole?
+  teamScope String?
+  panelsJson Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([roleScope, createdAt])
+  @@index([teamScope, createdAt])
+}
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  resource  String
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([resource, createdAt])
+}
+
