@@ -306,7 +306,6 @@ def _call_gemini_chat(message, history, context):
 
   try:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
     
     ctx = context or {}
     counts = ctx.get("counts", {})
@@ -331,6 +330,8 @@ def _call_gemini_chat(message, history, context):
       "}"
     )
 
+    model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction)
+
     contents = []
     for h in history:
       content = str(h.get("content", "")).strip()
@@ -345,8 +346,7 @@ def _call_gemini_chat(message, history, context):
 
     response = model.generate_content(
       contents,
-      generation_config={"response_mime_type": "application/json"},
-      system_instruction=system_instruction
+      generation_config={"response_mime_type": "application/json"}
     )
 
     result = json.loads(response.text)
