@@ -14,7 +14,10 @@ FEATURE_NAMES = [
   "angle_bracket_count",
   "script_token_count",
   "is_post_method",
-  "is_error_status"
+  "is_error_status",
+  "sql_keyword_count",
+  "directory_traversal",
+  "auth_endpoint_hit"
 ]
 
 THREAT_GUIDANCE = {
@@ -149,31 +152,83 @@ def featurize(log):
   path = str(log.get("path", ""))
   method = str(log.get("method", ""))
   status = int(log.get("statusCode", 200) or 200)
+  
+  path_lower = path.lower()
+  
+  # SQL keyword checks
+  sql_keywords = ["select", "union", "insert", "drop", "where", "or 1=1", "and 1=1", "admin'"]
+  sql_count = sum(1 for kw in sql_keywords if kw in path_lower)
+  
+  # Directory traversal checks
+  dir_traversal = 1 if (".." in path or "etc/passwd" in path_lower or "win.ini" in path_lower) else 0
+  
+  # Auth endpoint hit checks
+  auth_keywords = ["/login", "/auth", "/register", "/signup", "/session"]
+  auth_hit = 1 if any(ak in path_lower for ak in auth_keywords) else 0
+
   return np.array([
     len(path),
     path.count("%"),
     path.count("'"),
     path.count("<"),
-    path.lower().count("script"),
+    path_lower.count("script"),
     1 if method.upper() == "POST" else 0,
-    1 if status >= 400 else 0
+    1 if status >= 400 else 0,
+    sql_count,
+    dir_traversal,
+    auth_hit
   ], dtype=float)
 
 
 def load_or_train_model():
   if MODEL_PATH.exists():
-    return joblib.load(MODEL_PATH)
+    try:
+      model = joblib.load(MODEL_PATH)
+      if getattr(model, "n_features_in_", 0) == len(FEATURE_NAMES):
+        return model
+    except Exception:
+      pass
 
-  X = np.array([
-    [10, 0, 0, 0, 0, 0, 0],
-    [35, 3, 2, 0, 0, 1, 1],
-    [28, 1, 0, 2, 1, 0, 1],
-    [18, 0, 0, 0, 0, 1, 1],
-    [5, 0, 0, 0, 0, 0, 0],
-    [40, 0, 0, 0, 0, 0, 1]
-  ])
-  y = np.array([0, 1, 2, 3, 0, 4])
-  model = RandomForestClassifier(n_estimators=80, random_state=42)
+  data = [
+    # Benign queries (0)
+    ([10, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0),
+    ([18, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0),
+    ([25, 1, 0, 0, 0, 0, 0, 0, 0, 0], 0),
+    ([5, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0),
+    ([12, 0, 0, 0, 0, 1, 0, 0, 0, 0], 0),
+    ([14, 0, 0, 0, 0, 0, 1, 0, 0, 0], 0),
+    
+    # SQL Injections (1)
+    ([45, 3, 2, 0, 0, 1, 1, 2, 0, 0], 1),
+    ([60, 5, 1, 0, 0, 0, 0, 3, 0, 0], 1),
+    ([35, 1, 2, 0, 0, 0, 1, 1, 0, 0], 1),
+    ([40, 2, 3, 0, 0, 1, 0, 2, 0, 0], 1),
+    
+    # XSS (2)
+    ([32, 1, 0, 2, 1, 0, 1, 0, 0, 0], 2),
+    ([75, 4, 0, 4, 2, 1, 0, 0, 0, 0], 2),
+    ([50, 2, 0, 2, 1, 0, 0, 0, 0, 0], 2),
+    
+    # Brute Force (3)
+    ([15, 0, 0, 0, 0, 1, 1, 0, 0, 1], 3),
+    ([18, 0, 0, 0, 0, 1, 1, 0, 0, 1], 3),
+    ([14, 0, 0, 0, 0, 1, 1, 0, 0, 1], 3),
+    
+    # DDoS (4)
+    ([8, 0, 0, 0, 0, 0, 1, 0, 0, 0], 4),
+    ([6, 0, 0, 0, 0, 0, 1, 0, 0, 0], 4),
+    ([9, 0, 0, 0, 0, 0, 1, 0, 0, 0], 4),
+    
+    # Anomaly / Directory Traversal (5)
+    ([42, 0, 0, 0, 0, 0, 1, 0, 1, 0], 5),
+    ([55, 2, 0, 0, 0, 0, 1, 0, 1, 0], 5),
+    ([38, 0, 0, 0, 0, 0, 1, 0, 1, 0], 5)
+  ]
+  
+  X = np.array([x[0] for x in data])
+  y = np.array([x[1] for x in data])
+  
+  model = RandomForestClassifier(n_estimators=100, random_state=42)
   model.fit(X, y)
   MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
   joblib.dump(model, MODEL_PATH)
