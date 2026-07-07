@@ -330,8 +330,6 @@ def _call_gemini_chat(message, history, context):
       "}"
     )
 
-    model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction)
-
     contents = []
     for h in history:
       content = str(h.get("content", "")).strip()
@@ -344,10 +342,39 @@ def _call_gemini_chat(message, history, context):
       
     contents.append({"role": "user", "parts": [{"text": message}]})
 
-    response = model.generate_content(
-      contents,
-      generation_config={"response_mime_type": "application/json"}
-    )
+    models_to_try = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro", "gemini-1.5-pro"]
+    response = None
+    last_err = None
+    used_model = None
+
+    for model_name in models_to_try:
+      try:
+        used_model = model_name
+        if model_name == "gemini-pro":
+          model = genai.GenerativeModel(model_name)
+          modified_contents = [{"role": "user", "parts": [{"text": system_instruction}]}] + contents
+          response = model.generate_content(modified_contents)
+        else:
+          model = genai.GenerativeModel(model_name, system_instruction=system_instruction)
+          response = model.generate_content(
+            contents,
+            generation_config={"response_mime_type": "application/json"}
+          )
+        if response:
+          break
+      except Exception as model_err:
+        last_err = model_err
+        err_str = str(model_err).lower()
+        if "404" in err_str or "not found" in err_str:
+          continue
+        else:
+          raise model_err
+
+    if not response:
+      if last_err:
+        raise last_err
+      else:
+        raise Exception("No response received from any model")
 
     text_resp = response.text.strip()
     if text_resp.startswith("```"):
@@ -357,10 +384,29 @@ def _call_gemini_chat(message, history, context):
       if text_resp.endswith("```"):
         text_resp = text_resp[:-3].strip()
 
-    result = json.loads(text_resp)
+    try:
+      result = json.loads(text_resp)
+    except Exception:
+      result = {
+        "intent": "general_soc_help",
+        "guidanceLabel": None,
+        "reply": text_resp,
+        "suggestedPrompts": [
+          "Show me top threat type and first containment step.",
+          "How do I triage alerts quickly?",
+          "Give me a short incident runbook for today."
+        ]
+      }
+
     return result
   except Exception as e:
     print(f"Gemini call failed, falling back: {e}")
+    try:
+      if genai:
+        models = [m.name for m in genai.list_models()]
+        print(f"Available models in your account/region: {models}")
+    except Exception as list_err:
+      print(f"Failed to list models: {list_err}")
     return None
 
 
