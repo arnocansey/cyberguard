@@ -1,8 +1,14 @@
 import numpy as np
 import os
 import joblib
+import json
 from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier
+
+try:
+  import google.generativeai as genai
+except ImportError:
+  genai = None
 
 MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "threat_model.joblib"
 MODEL_VERSION = os.getenv("MODEL_VERSION", "threat-rf-v1")
@@ -293,7 +299,65 @@ def _infer_intent(message):
   return "general_soc_help", None
 
 
-def build_chat_response(message, context=None):
+def _call_gemini_chat(message, history, context):
+  api_key = os.getenv("GEMINI_API_KEY", "")
+  if not api_key or not genai:
+    return None
+
+  try:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    
+    ctx = context or {}
+    counts = ctx.get("counts", {})
+    top_threats = ctx.get("topThreats24h", [])
+    top_line = ", ".join([f"{item.get('type')} ({item.get('count')})" for item in top_threats]) or "None"
+
+    system_instruction = (
+      "You are SOC Copilot, a helpful AI assistant for the CyberGuard security platform.\n"
+      "You help analysts investigate threats, run playbook mitigations, and configure their dashboard.\n"
+      "Here is the active SOC environment metadata you must keep in mind:\n"
+      f"- Total Logs: {counts.get('logs', 0)}\n"
+      f"- Active Threats: {counts.get('threats', 0)}\n"
+      f"- Open/In-progress Incidents: {counts.get('openIncidents', 0)}\n"
+      f"- Unresolved Alerts: {counts.get('newAlerts', 0)}\n"
+      f"- Top Threat Types (last 24 hours): {top_line}\n\n"
+      "You must respond ONLY with a JSON object. Do not wrap in markdown code blocks. The JSON object must match this schema:\n"
+      "{\n"
+      "  \"intent\": \"string (one of: 'threat_treatment', 'incident_workflow', 'dashboard_help', 'general_soc_help')\",\n"
+      "  \"guidanceLabel\": \"string (one of: 'BENIGN', 'SQL_INJECTION', 'XSS', 'BRUTE_FORCE', 'DDOS', 'ANOMALY', or null)\",\n"
+      "  \"reply\": \"markdown formatted response text with actionable containment steps and analysis\",\n"
+      "  \"suggestedPrompts\": [\"three short related follow-up questions/actions the user might ask next\"]\n"
+      "}"
+    )
+
+    contents = []
+    for h in history:
+      role = "user" if h.get("role") == "user" else "model"
+      contents.append({"role": role, "parts": [h.get("content", "")]})
+      
+    contents.append({"role": "user", "parts": [message]})
+
+    response = model.generate_content(
+      contents,
+      generation_config={"response_mime_type": "application/json"},
+      system_instruction=system_instruction
+    )
+
+    result = json.loads(response.text)
+    return result
+  except Exception as e:
+    print(f"Gemini call failed, falling back: {e}")
+    return None
+
+
+def build_chat_response(message, history=None, context=None):
+  # Clean history and try Gemini
+  hist = history or []
+  gemini_response = _call_gemini_chat(message, hist, context)
+  if gemini_response:
+    return gemini_response
+
   ctx = context or {}
   counts = ctx.get("counts", {})
   top_threats = ctx.get("topThreats24h", [])

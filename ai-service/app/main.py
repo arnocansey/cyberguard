@@ -99,6 +99,7 @@ def chat_route():
 
   payload = request.get_json(silent=True) or {}
   message = payload.get("message", "")
+  history = payload.get("history", [])
   context = payload.get("context", {})
 
   if not isinstance(message, str) or not message.strip():
@@ -110,7 +111,7 @@ def chat_route():
   metrics["chat_requests_total"] += 1
 
   try:
-    reply = build_chat_response(message=message, context=context)
+    reply = build_chat_response(message=message, history=history, context=context)
     return jsonify({"modelVersion": MODEL_VERSION, **reply})
   except Exception as exc:
     metrics["last_error"] = str(exc)
