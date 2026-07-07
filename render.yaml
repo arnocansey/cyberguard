@@ -29,7 +29,7 @@ services:
         fromService:
           name: cyberguard-ai
           type: pserv
-          envVar: AI_SERVICE_API_KEY
+          envVarKey: AI_SERVICE_API_KEY
 
       # Security secrets (Render generates secure random strings automatically)
       - key: JWT_ACCESS_SECRET
