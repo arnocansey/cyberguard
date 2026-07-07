@@ -333,8 +333,13 @@ def _call_gemini_chat(message, history, context):
 
     contents = []
     for h in history:
+      content = str(h.get("content", "")).strip()
+      if not content:
+        continue
       role = "user" if h.get("role") == "user" else "model"
-      contents.append({"role": role, "parts": [h.get("content", "")]})
+      if not contents and role != "user":
+        continue
+      contents.append({"role": role, "parts": [content]})
       
     contents.append({"role": "user", "parts": [message]})
 
