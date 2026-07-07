@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import AppShell from "../../components/AppShell";
 import api from "../../lib/api";
@@ -18,7 +18,7 @@ const decodeUserId = () => {
   }
 };
 
-export default function IncidentsPage() {
+function IncidentsPageContent() {
   const searchParams = useSearchParams();
   const preselectedAlertId = searchParams.get("alertId") || "";
 
@@ -225,5 +225,13 @@ export default function IncidentsPage() {
         </ul>
       </div>
     </AppShell>
+  );
+}
+
+export default function IncidentsPage() {
+  return (
+    <Suspense fallback={<div className="p-5 text-slate-300">Loading incidents...</div>}>
+      <IncidentsPageContent />
+    </Suspense>
   );
 }

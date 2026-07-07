@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppShell from "../../components/AppShell";
 import api from "../../lib/api";
@@ -16,7 +16,7 @@ const ALL_COLUMNS = [
   ["severity", "Severity"]
 ];
 
-export default function SearchPage() {
+function SearchPageContent() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -323,6 +323,14 @@ export default function SearchPage() {
         </aside>
       </div>
     </AppShell>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="p-5 text-slate-300">Loading search...</div>}>
+      <SearchPageContent />
+    </Suspense>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Sidebar from "./Sidebar";
 import SocChatbot from "./SocChatbot";
 import ThemeToggle from "./ThemeToggle";
@@ -20,21 +20,56 @@ const rangeToFromIso = (range) => {
   return new Date(now - delta).toISOString();
 };
 
-export default function AppShell({ title, children }) {
+function SearchBar({ pathname }) {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-
   const [query, setQuery] = useState("");
   const [range, setRange] = useState("24h");
-  const [role, setRole] = useState(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setQuery(searchParams.get("q") || searchParams.get("query") || "");
     setRange(searchParams.get("range") || "24h");
-    setRole(getCurrentRole());
   }, [searchParams, pathname]);
+
+  const onRunSearch = () => {
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    params.set("range", range);
+    params.set("from", rangeToFromIso(range));
+    router.push(`/search?${params.toString()}`);
+  };
+
+  return (
+    <div className="glass mb-4 flex flex-wrap items-center gap-2 rounded-lg p-3">
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="min-w-[300px] flex-1 rounded bg-black/20 p-2 text-sm"
+        placeholder="Search: source=apache status>=400 path=/login"
+      />
+      <select value={range} onChange={(e) => setRange(e.target.value)} className="rounded bg-black/20 p-2 text-sm">
+        <option value="15m">Last 15m</option>
+        <option value="1h">Last 1h</option>
+        <option value="24h">Last 24h</option>
+        <option value="7d">Last 7d</option>
+      </select>
+      <button onClick={onRunSearch} className="rounded bg-orange-500 px-3 py-2 text-sm font-semibold text-black">
+        Run Search
+      </button>
+    </div>
+  );
+}
+
+export default function AppShell({ title, children }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [role, setRole] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setRole(getCurrentRole());
+  }, [pathname]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -46,14 +81,6 @@ export default function AppShell({ title, children }) {
       document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
-
-  const onRunSearch = () => {
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    params.set("range", range);
-    params.set("from", rangeToFromIso(range));
-    router.push(`/search?${params.toString()}`);
-  };
 
   const showSearchBar = useMemo(() => !["/login", "/register"].includes(pathname), [pathname]);
 
@@ -112,23 +139,9 @@ export default function AppShell({ title, children }) {
         </div>
 
         {showSearchBar && (
-          <div className="glass mb-4 flex flex-wrap items-center gap-2 rounded-lg p-3">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="min-w-[300px] flex-1 rounded bg-black/20 p-2 text-sm"
-              placeholder="Search: source=apache status>=400 path=/login"
-            />
-            <select value={range} onChange={(e) => setRange(e.target.value)} className="rounded bg-black/20 p-2 text-sm">
-              <option value="15m">Last 15m</option>
-              <option value="1h">Last 1h</option>
-              <option value="24h">Last 24h</option>
-              <option value="7d">Last 7d</option>
-            </select>
-            <button onClick={onRunSearch} className="rounded bg-orange-500 px-3 py-2 text-sm font-semibold text-black">
-              Run Search
-            </button>
-          </div>
+          <Suspense fallback={<div className="glass mb-4 h-12 rounded-lg animate-pulse bg-white/5" />}>
+            <SearchBar pathname={pathname} />
+          </Suspense>
         )}
 
         {children}
