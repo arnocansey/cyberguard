@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.js";
+import axios from "axios";
 
 const SOAR_PLAYBOOKS = [
   {
@@ -28,6 +29,61 @@ export const runSoarPlaybook = async ({ playbookId, alertId, targetIp, tenantId,
 
   const resolvedIp = targetIp || alert?.threat?.log?.ipAddress || null;
 
+  // 1. Fetch active integrations
+  const integrations = await prisma.integration.findMany({
+    where: { tenantId, isActive: true }
+  });
+
+  const webhookPromises = integrations.map(async (integration) => {
+    const action = playbookId === "pb_contain_web_attack" ? "BLOCK_IP" : "LOCK_ACCOUNT";
+    const start = Date.now();
+    try {
+      const response = await axios.post(
+        integration.targetUrl,
+        {
+          event: "cyberguard.playbook.mitigate",
+          playbookId,
+          playbookName: playbook.name,
+          action,
+          targetIp: resolvedIp,
+          timestamp: new Date()
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-CyberGuard-Key": integration.secretKey
+          },
+          timeout: 5000
+        }
+      );
+
+      return {
+        integrationId: integration.id,
+        name: integration.name,
+        targetUrl: integration.targetUrl,
+        status: "SUCCESS",
+        statusCode: response.status,
+        responseTimeMs: Date.now() - start
+      };
+    } catch (err) {
+      return {
+        integrationId: integration.id,
+        name: integration.name,
+        targetUrl: integration.targetUrl,
+        status: "FAILED",
+        error: err.message,
+        statusCode: err.response?.status || null,
+        responseTimeMs: Date.now() - start
+      };
+    }
+  });
+
+  // 2. Dispatch webhooks in parallel
+  const results = await Promise.all(webhookPromises);
+
+  // 3. Save results in SoarExecution
+  const executionStatus = results.some(r => r.status === "FAILED") ? "PARTIALLY_FAILED" : "COMPLETED";
+
   const execution = await prisma.soarExecution.create({
     data: {
       playbookId,
@@ -35,7 +91,8 @@ export const runSoarPlaybook = async ({ playbookId, alertId, targetIp, tenantId,
       tenantId,
       targetIp: resolvedIp,
       stepsExecuted: playbook.steps,
-      status: "COMPLETED"
+      status: executionStatus,
+      integrationResults: results
     }
   });
 

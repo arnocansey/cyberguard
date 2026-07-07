@@ -295,14 +295,15 @@ model AuditLog {
 }
 
 model SoarExecution {
-  id            String   @id @default(uuid())
-  playbookId    String
-  alertId       String?
-  tenantId      String?
-  targetIp      String?
-  stepsExecuted String[]
-  status        String
-  executedAt    DateTime @default(now())
+  id                 String   @id @default(uuid())
+  playbookId         String
+  alertId            String?
+  tenantId           String?
+  targetIp           String?
+  stepsExecuted      String[]
+  status             String
+  integrationResults Json?
+  executedAt         DateTime @default(now())
 
   @@index([tenantId])
 }
@@ -380,4 +381,18 @@ model ApiKey {
   updatedAt   DateTime  @updatedAt
 
   @@index([keyHash])
+}
+
+model Integration {
+  id        String   @id @default(uuid())
+  name      String
+  tenantId  String
+  type      String   @default("WEBHOOK")
+  targetUrl String
+  secretKey String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
 }

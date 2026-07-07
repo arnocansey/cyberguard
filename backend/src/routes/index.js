@@ -13,6 +13,7 @@ import searchRoutes from "./search.routes.js";
 import threatsRoutes from "./threats.routes.js";
 import apikeyRoutes from "./apikey.routes.js";
 import ingestRoutes from "./ingest.routes.js";
+import integrationRoutes from "./integration.routes.js";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.use("/incidents", incidentsRoutes);
 router.use("/reports", reportsRoutes);
 router.use("/admin", adminRoutes);
 router.use("/admin/apikeys", apikeyRoutes);
+router.use("/admin/integrations", integrationRoutes);
 router.use("/search", searchRoutes);
 router.use("/correlation-rules", correlationRoutes);
 router.use("/dashboard", dashboardRoutes);
