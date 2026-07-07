@@ -5,12 +5,15 @@ import { useEffect, useState } from "react";
 import AppShell from "../../components/AppShell";
 import AdminSchedulerPanel from "../../components/AdminSchedulerPanel";
 import api from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 const USER_COLUMNS = ["fullName", "email", "role", "twoFaEnabled", "createdAt"];
 const AUDIT_COLUMNS = ["createdAt", "user", "action", "resource", "ipAddress"];
 const ALERT_COLUMNS = ["message", "severity", "status", "assignedTo", "createdAt"];
 
 export default function AdminPage() {
+  const toast = useToast();
+
   const [summary, setSummary] = useState(null);
   const [users, setUsers] = useState([]);
   const [usersMeta, setUsersMeta] = useState({ page: 1, totalPages: 1, total: 0 });
@@ -47,6 +50,17 @@ export default function AdminPage() {
   const [ruleForm, setRuleForm] = useState({ name: "", description: "", query: "", severity: "MEDIUM" });
   const [editingRuleId, setEditingRuleId] = useState("");
   const [editingRule, setEditingRule] = useState({ name: "", description: "", query: "", severity: "MEDIUM", enabled: true });
+
+  const [apiKeys, setApiKeys] = useState([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyExpires, setNewKeyExpires] = useState("30");
+  const [createdKeyRaw, setCreatedKeyRaw] = useState("");
+  const [showKeyModal, setShowKeyModal] = useState(false);
+
+  const [integrations, setIntegrations] = useState([]);
+  const [newIntName, setNewIntName] = useState("");
+  const [newIntUrl, setNewIntUrl] = useState("");
+  const [newIntKey, setNewIntKey] = useState("");
 
   const toggleColumn = (columns, setColumns, key) => {
     setColumns((prev) => (prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]));
@@ -143,9 +157,77 @@ export default function AdminPage() {
     setRules(res.data || []);
   };
 
+  const loadApiKeys = async () => {
+    const res = await api.get("/admin/apikeys");
+    setApiKeys(res.data || []);
+  };
+
+  const createApiKey = async () => {
+    if (!newKeyName.trim()) return;
+    try {
+      const res = await api.post("/admin/apikeys", {
+        name: newKeyName,
+        expiresDays: newKeyExpires ? parseInt(newKeyExpires, 10) : null
+      });
+      setCreatedKeyRaw(res.data.rawKey);
+      setShowKeyModal(true);
+      setNewKeyName("");
+      toast.success("API Key created successfully!");
+      await loadApiKeys();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to create API key");
+    }
+  };
+
+  const revokeApiKey = async (id) => {
+    try {
+      await api.delete(`/admin/apikeys/${id}`);
+      toast.success("API Key revoked successfully!");
+      await loadApiKeys();
+    } catch (err) {
+      toast.error("Failed to revoke API key");
+    }
+  };
+
+  const loadIntegrations = async () => {
+    const res = await api.get("/admin/integrations");
+    setIntegrations(res.data || []);
+  };
+
+  const createInt = async () => {
+    if (!newIntName.trim() || !newIntUrl.trim() || !newIntKey.trim()) {
+      toast.warn("All fields are required for integration");
+      return;
+    }
+    try {
+      await api.post("/admin/integrations", {
+        name: newIntName,
+        targetUrl: newIntUrl,
+        secretKey: newIntKey
+      });
+      setNewIntName("");
+      setNewIntUrl("");
+      setNewIntKey("");
+      toast.success("Integration added successfully!");
+      await loadIntegrations();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to add integration");
+    }
+  };
+
+  const removeInt = async (id) => {
+    try {
+      await api.delete(`/admin/integrations/${id}`);
+      toast.success("Integration removed successfully!");
+      await loadIntegrations();
+    } catch (err) {
+      toast.error("Failed to remove integration");
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadSummary(), loadUsers(), loadLogs(), loadAlerts(), loadRules()])
+    Promise.all([loadSummary(), loadUsers(), loadLogs(), loadAlerts(), loadRules(), loadApiKeys(), loadIntegrations()])
       .catch((err) => handleError(err, "Failed loading admin data"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -550,6 +632,143 @@ export default function AdminPage() {
           <Pager page={logsMeta.page} totalPages={logsMeta.totalPages} onPrev={() => setLogsPage((p) => Math.max(1, p - 1))} onNext={() => setLogsPage((p) => Math.min(logsMeta.totalPages, p + 1))} />
         </section>
       </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section className="glass rounded-xl p-4">
+          <h3 className="mb-2 text-lg font-semibold">Ingestion API Keys</h3>
+          <div className="space-y-2 mb-4">
+            <div className="flex gap-2">
+              <input 
+                className="flex-1 rounded bg-black/20 p-2 text-sm" 
+                placeholder="Key Name (e.g. Ingest App A)" 
+                value={newKeyName} 
+                onChange={(e) => setNewKeyName(e.target.value)} 
+              />
+              <select 
+                className="rounded bg-black/20 p-2 text-sm" 
+                value={newKeyExpires} 
+                onChange={(e) => setNewKeyExpires(e.target.value)}
+              >
+                <option value="30">Expires in 30 days</option>
+                <option value="90">Expires in 90 days</option>
+                <option value="365">Expires in 1 year</option>
+                <option value="">Never expires</option>
+              </select>
+            </div>
+            <button onClick={createApiKey} className="w-full rounded bg-orange-500 py-2 text-sm font-semibold text-black hover:bg-orange-400 transition-colors">
+              Generate Ingestion Key
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-[300px] overflow-auto text-xs">
+            {apiKeys.length === 0 ? (
+              <p className="text-slate-400">No ingestion API keys configured.</p>
+            ) : (
+              apiKeys.map((k) => (
+                <div key={k.id} className="flex items-center justify-between rounded border border-white/10 p-2.5">
+                  <div>
+                    <div className="font-semibold text-white">{k.name}</div>
+                    <div className="text-slate-400 mt-0.5">
+                      Created: {new Date(k.createdAt).toLocaleDateString()} | {k.expiresAt ? `Expires: ${new Date(k.expiresAt).toLocaleDateString()}` : "Never expires"}
+                    </div>
+                    {k.lastUsedAt && (
+                      <div className="text-slate-500 mt-0.5">
+                        Last Used: {new Date(k.lastUsedAt).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => revokeApiKey(k.id)} 
+                    className="rounded bg-red-600/80 px-2.5 py-1 font-semibold text-white hover:bg-red-500 transition-colors"
+                  >
+                    Revoke
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="glass rounded-xl p-4">
+          <h3 className="mb-2 text-lg font-semibold">Active Response Webhook Integrations</h3>
+          <div className="space-y-2 mb-4">
+            <input 
+              className="w-full rounded bg-black/20 p-2 text-sm" 
+              placeholder="Integration Name (e.g. My Main Firewall)" 
+              value={newIntName} 
+              onChange={(e) => setNewIntName(e.target.value)} 
+            />
+            <div className="flex gap-2">
+              <input 
+                className="flex-1 rounded bg-black/20 p-2 text-sm" 
+                placeholder="Target URL (e.g. https://my-other-website.com/api/cyberguard/webhook)" 
+                value={newIntUrl} 
+                onChange={(e) => setNewIntUrl(e.target.value)} 
+              />
+              <input 
+                className="flex-1 rounded bg-black/20 p-2 text-sm" 
+                placeholder="Secret Handshake Key" 
+                value={newIntKey} 
+                onChange={(e) => setNewIntKey(e.target.value)} 
+              />
+            </div>
+            <button onClick={createInt} className="w-full rounded bg-orange-500 py-2 text-sm font-semibold text-black hover:bg-orange-400 transition-colors">
+              Add Webhook Integration
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-[300px] overflow-auto text-xs">
+            {integrations.length === 0 ? (
+              <p className="text-slate-400">No active response webhooks configured.</p>
+            ) : (
+              integrations.map((i) => (
+                <div key={i.id} className="flex items-center justify-between rounded border border-white/10 p-2.5">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <div className="font-semibold text-white truncate">{i.name}</div>
+                    <div className="text-slate-400 truncate mt-0.5">{i.targetUrl}</div>
+                    <div className="text-slate-500 mt-0.5">Type: {i.type}</div>
+                  </div>
+                  <button 
+                    onClick={() => removeInt(i.id)} 
+                    className="rounded bg-red-600/80 px-2.5 py-1 font-semibold text-white hover:bg-red-500 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="glass max-w-md w-full rounded-2xl p-6 border border-orange-500/30 shadow-2xl animate-fade-in">
+            <h3 className="text-lg font-bold text-orange-400">⚠️ Store Your Ingestion API Key</h3>
+            <p className="text-xs text-slate-300 mt-2">
+              For security, this key is hashed in the database. You will **not** be able to see it again!
+            </p>
+            <div className="mt-4 flex items-center gap-2 rounded bg-black/40 p-3 font-mono text-sm border border-white/10">
+              <span className="flex-1 break-all select-all text-orange-200">{createdKeyRaw}</span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(createdKeyRaw);
+                  toast.success("API Key copied to clipboard!");
+                }}
+                className="rounded bg-white/10 px-2 py-1 text-xs hover:bg-white/20 transition-colors"
+              >
+                Copy
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowKeyModal(false)}
+              className="mt-5 w-full rounded bg-orange-500 py-2 text-sm font-semibold text-black hover:bg-orange-400 transition-colors"
+            >
+              I have saved it, close
+            </button>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
