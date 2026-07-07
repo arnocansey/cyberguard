@@ -186,3 +186,38 @@ export const getLogById = (id, tenantId = "default") =>
   prisma.log.findFirst({ where: { id, tenantId } });
 
 export const clearAllLogs = (tenantId = "default") => prisma.log.deleteMany({ where: { tenantId } });
+
+export const processIngestedLogs = async (logsArray, source = "external_api", tenantId = "default") => {
+  const createdLogs = [];
+
+  for (const item of logsArray) {
+    if (!item || typeof item !== "object") continue;
+    const raw = item.raw || `[JSON] ${item.method || "GET"} ${item.path || "/"} ${item.statusCode || 200}`;
+    const log = await prisma.log.create({
+      data: {
+        source,
+        sourcetype: source,
+        host: item.host || item.ipAddress || null,
+        raw,
+        parsedJson: item,
+        ipAddress: item.ipAddress || null,
+        method: item.method || null,
+        path: item.path || null,
+        statusCode: item.statusCode ? parseInt(item.statusCode, 10) : null,
+        tenantId
+      }
+    });
+    createdLogs.push(log);
+  }
+
+  if (!createdLogs.length) return { processed: 0, threats: [] };
+
+  const { data } = await callAiService(buildAiPayload(createdLogs));
+  const createdThreats = await createThreatArtifacts({
+    predictions: data?.predictions || [],
+    modelVersion: data?.modelVersion,
+    context: "ingest"
+  });
+
+  return { processed: createdLogs.length, threats: createdThreats };
+};

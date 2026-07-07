@@ -11,16 +11,20 @@ import logsRoutes from "./logs.routes.js";
 import reportsRoutes from "./reports.routes.js";
 import searchRoutes from "./search.routes.js";
 import threatsRoutes from "./threats.routes.js";
+import apikeyRoutes from "./apikey.routes.js";
+import ingestRoutes from "./ingest.routes.js";
 
 const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/logs", logsRoutes);
+router.use("/logs/ingest", ingestRoutes);
 router.use("/threats", threatsRoutes);
 router.use("/alerts", alertsRoutes);
 router.use("/incidents", incidentsRoutes);
 router.use("/reports", reportsRoutes);
 router.use("/admin", adminRoutes);
+router.use("/admin/apikeys", apikeyRoutes);
 router.use("/search", searchRoutes);
 router.use("/correlation-rules", correlationRoutes);
 router.use("/dashboard", dashboardRoutes);
