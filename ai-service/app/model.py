@@ -342,7 +342,14 @@ def _call_gemini_chat(message, history, context):
       
     contents.append({"role": "user", "parts": [{"text": message}]})
 
-    models_to_try = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro", "gemini-1.5-pro"]
+    models_to_try = [
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-exp",
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-pro",
+      "gemini-pro"
+    ]
     response = None
     last_err = None
     used_model = None
@@ -364,11 +371,8 @@ def _call_gemini_chat(message, history, context):
           break
       except Exception as model_err:
         last_err = model_err
-        err_str = str(model_err).lower()
-        if "404" in err_str or "not found" in err_str:
-          continue
-        else:
-          raise model_err
+        print(f"Model {model_name} failed: {model_err}")
+        continue
 
     if not response:
       if last_err:
