@@ -340,16 +340,24 @@ def _call_gemini_chat(message, history, context):
       role = "user" if h.get("role") == "user" else "model"
       if not contents and role != "user":
         continue
-      contents.append({"role": role, "parts": [content]})
+      contents.append({"role": role, "parts": [{"text": content}]})
       
-    contents.append({"role": "user", "parts": [message]})
+    contents.append({"role": "user", "parts": [{"text": message}]})
 
     response = model.generate_content(
       contents,
       generation_config={"response_mime_type": "application/json"}
     )
 
-    result = json.loads(response.text)
+    text_resp = response.text.strip()
+    if text_resp.startswith("```"):
+      first_nl = text_resp.find("\n")
+      if first_nl != -1:
+        text_resp = text_resp[first_nl:].strip()
+      if text_resp.endswith("```"):
+        text_resp = text_resp[:-3].strip()
+
+    result = json.loads(text_resp)
     return result
   except Exception as e:
     print(f"Gemini call failed, falling back: {e}")
