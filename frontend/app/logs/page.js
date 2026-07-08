@@ -99,25 +99,32 @@ export default function LogsPage() {
   return (
     <AppShell title="Logs Management">
       <div className="glass mb-4 rounded-xl p-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">Upload Ingest Stream</h3>
         <div className="flex flex-wrap items-center gap-3">
-          <input type="file" accept=".log,.txt" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <select className="rounded bg-black/20 p-2" value={source} onChange={(e) => setSource(e.target.value)}>
-            <option value="apache">apache</option>
-            <option value="nginx">nginx</option>
-            <option value="firewall">firewall</option>
-          </select>
-          <button onClick={upload} disabled={uploading || clearing} className="rounded bg-orange-500 px-3 py-1 text-black disabled:opacity-50">
-            {uploading ? "Uploading..." : "Upload"}
+          <label className="relative flex items-center justify-center rounded-lg border border-dashed border-white/20 bg-black/10 px-4 py-2 hover:bg-black/20 cursor-pointer transition-colors text-xs font-medium text-slate-300">
+            <span>{file ? file.name : "Select Log File (.log, .txt)"}</span>
+            <input type="file" accept=".log,.txt" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Source:</span>
+            <select className="rounded-lg bg-black/20 p-2 text-xs border border-white/15 text-slate-300 outline-none" value={source} onChange={(e) => setSource(e.target.value)}>
+              <option value="apache">Apache</option>
+              <option value="nginx">Nginx</option>
+              <option value="firewall">Firewall</option>
+            </select>
+          </div>
+          <button onClick={upload} disabled={uploading || clearing} className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-black hover:bg-orange-400 transition-colors disabled:opacity-50">
+            {uploading ? "Uploading..." : "Upload Stream"}
           </button>
           <button
             onClick={requestClearLogs}
             disabled={uploading || clearing || logs.length === 0}
-            className="rounded border border-red-400/60 px-3 py-1 text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg border border-red-400/40 px-4 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             {clearing ? "Clearing..." : "Clear all logs"}
           </button>
         </div>
-        {error && <p className="mt-3 text-red-400">{error}</p>}
+        {error && <p className="mt-3 text-red-400 text-xs font-semibold">{error}</p>}
       </div>
 
       {uploadResult && (
@@ -210,27 +217,48 @@ export default function LogsPage() {
         </div>
       )}
 
-      <div className="glass rounded-xl p-4">
-        <table className="w-full text-sm">
-          <thead>
-            <tr>
-              <th>IP</th>
-              <th>Method</th>
-              <th>Path</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log) => (
-              <tr key={log.id}>
-                <td>{log.ipAddress}</td>
-                <td>{log.method}</td>
-                <td>{log.path}</td>
-                <td>{log.statusCode}</td>
+      <div className="glass rounded-xl p-4 overflow-hidden">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">Recent Logs Activity</h3>
+        <div className="max-h-[400px] overflow-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-white/10 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="pb-2 pr-4">IP Address</th>
+                <th className="pb-2 pr-4">Method</th>
+                <th className="pb-2 pr-4">Path</th>
+                <th className="pb-2 text-right">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {logs.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="py-4 text-center text-slate-500">No logs ingested yet.</td>
+                </tr>
+              ) : (
+                logs.map((log) => {
+                  let statusColor = "text-slate-400";
+                  if (log.statusCode >= 200 && log.statusCode < 300) statusColor = "text-emerald-400 font-bold";
+                  else if (log.statusCode >= 300 && log.statusCode < 400) statusColor = "text-sky-400";
+                  else if (log.statusCode >= 400 && log.statusCode < 500) statusColor = "text-amber-400 font-bold";
+                  else if (log.statusCode >= 500) statusColor = "text-rose-400 font-bold";
+
+                  return (
+                    <tr key={log.id} className="hover:bg-white/5 transition-colors">
+                      <td className="py-2.5 pr-4 font-mono text-slate-300">{log.ipAddress}</td>
+                      <td className="py-2.5 pr-4">
+                        <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-bold text-orange-300 uppercase">
+                          {log.method}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4 font-mono text-slate-300 break-all">{log.path}</td>
+                      <td className={`py-2.5 text-right font-mono ${statusColor}`}>{log.statusCode}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {confirmOpen && (
