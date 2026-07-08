@@ -343,12 +343,26 @@ def _call_gemini_chat(message, history, context):
     contents.append({"role": "user", "parts": [{"text": message}]})
 
     models_to_try = [
+      "gemini-2.5-flash",
+      "models/gemini-2.5-flash",
+      "gemini-2.0-flash-lite",
+      "models/gemini-2.0-flash-lite",
+      "gemini-flash-latest",
+      "models/gemini-flash-latest",
+      "gemini-flash-lite-latest",
+      "models/gemini-flash-lite-latest",
       "gemini-2.0-flash",
-      "gemini-2.0-flash-exp",
+      "models/gemini-2.0-flash",
+      "gemini-pro-latest",
+      "models/gemini-pro-latest",
+      "gemini-3.5-flash",
+      "models/gemini-3.5-flash",
       "gemini-1.5-flash",
-      "gemini-1.5-flash-latest",
+      "models/gemini-1.5-flash",
       "gemini-1.5-pro",
-      "gemini-pro"
+      "models/gemini-1.5-pro",
+      "gemini-pro",
+      "models/gemini-pro"
     ]
     response = None
     last_err = None
@@ -357,7 +371,8 @@ def _call_gemini_chat(message, history, context):
     for model_name in models_to_try:
       try:
         used_model = model_name
-        if model_name == "gemini-pro":
+        is_legacy_pro = "pro" in model_name.lower() and "1.5" not in model_name and "2.5" not in model_name and "3." not in model_name
+        if is_legacy_pro:
           model = genai.GenerativeModel(model_name)
           modified_contents = [{"role": "user", "parts": [{"text": system_instruction}]}] + contents
           response = model.generate_content(modified_contents)
