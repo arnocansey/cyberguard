@@ -177,33 +177,176 @@ export default function DashboardPage() {
 
                 <div className="mb-2 text-xs text-slate-400">{panel.query}</div>
 
-                {panel.vizType === "METRIC" && <div className="text-4xl font-bold text-orange-400">{data?.total ?? "..."}</div>}
-
-                {panel.vizType !== "METRIC" && (
-                  <div className="max-h-64 overflow-auto text-xs">
-                    <table className="w-full">
-                      <thead>
-                        <tr>
-                          <th className="text-left">Label</th>
-                          <th className="text-left">Count</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(data?.bySource || []).map((r) => (
-                          <tr key={r.source}>
-                            <td>{r.source || "unknown"}</td>
-                            <td>{r._count._all}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <PanelVisualizer vizType={panel.vizType} data={data} />
               </section>
             );
           })
         )}
       </div>
     </AppShell>
+  );
+}
+
+function PanelVisualizer({ vizType, data }) {
+  if (!data) {
+    return <div className="text-slate-400 text-xs py-4">No data available</div>;
+  }
+
+  if (vizType === "METRIC") {
+    return (
+      <div className="py-6 flex flex-col justify-center">
+        <div className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-300 drop-shadow-[0_0_15px_rgba(249,115,22,0.2)]">
+          {data.total ?? 0}
+        </div>
+        <div className="text-[10px] uppercase tracking-wider text-slate-500 mt-1">Total Logs Count</div>
+      </div>
+    );
+  }
+
+  const severityColors = {
+    CRITICAL: "#ef4444",
+    HIGH: "#f97316",
+    MEDIUM: "#eab308",
+    LOW: "#3b82f6",
+    INFO: "#64748b"
+  };
+  const categoryColors = ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#06b6d4"];
+
+  if (vizType === "PIE") {
+    const severityData = data.bySeverity || [];
+    const hasSeverity = severityData.length > 0;
+    
+    const items = hasSeverity 
+      ? severityData.map(s => ({ label: s.severity, count: s._count._all, color: severityColors[s.severity] || severityColors.INFO }))
+      : (data.bySource || []).map((s, idx) => ({ label: s.source || "unknown", count: s._count._all, color: categoryColors[idx % categoryColors.length] }));
+
+    const total = items.reduce((sum, item) => sum + item.count, 0);
+
+    if (total === 0) {
+      return <div className="text-slate-500 text-xs py-4">0 matches found</div>;
+    }
+
+    let currentPercentage = 0;
+    const slices = items.map((item) => {
+      const percentage = (item.count / total) * 100;
+      const start = currentPercentage;
+      currentPercentage += percentage;
+      return `${item.color} ${start}% ${currentPercentage}%`;
+    }).join(", ");
+
+    return (
+      <div className="flex items-center gap-6 py-4">
+        <div 
+          className="relative h-28 w-28 shrink-0 rounded-full border border-white/5 shadow-inner"
+          style={{ background: `conic-gradient(${slices})` }}
+        >
+          <div className="absolute inset-[24%] rounded-full bg-[#0d1117] flex items-center justify-center flex-col">
+            <span className="text-base font-bold text-white">{total}</span>
+            <span className="text-[8px] text-slate-500 uppercase tracking-widest">events</span>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-1.5 max-h-[120px] overflow-auto text-xs">
+          {items.map((item) => {
+            const percentage = ((item.count / total) * 100).toFixed(0);
+            return (
+              <div key={item.label} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="text-slate-300 font-medium truncate uppercase">{item.label}</span>
+                </div>
+                <span className="text-slate-400 shrink-0 font-mono">
+                  {item.count} <span className="text-[10px] text-slate-500">({percentage}%)</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (vizType === "LINE") {
+    const items = data.bySource || [];
+    if (items.length === 0) {
+      return <div className="text-slate-500 text-xs py-4">No source data for trendline</div>;
+    }
+
+    const counts = items.map(i => i._count._all);
+    const maxVal = Math.max(...counts, 1);
+    
+    const width = 360;
+    const height = 110;
+    const padding = 15;
+    const chartWidth = width - padding * 2;
+    const chartHeight = height - padding * 2;
+
+    const points = items.map((item, idx) => {
+      const x = padding + (idx / (items.length - 1 || 1)) * chartWidth;
+      const y = padding + chartHeight - (item._count._all / maxVal) * chartHeight;
+      return { x, y, label: item.source || "unknown", count: item._count._all };
+    });
+
+    const linePath = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+    const areaPath = points.length > 0 
+      ? `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`
+      : "";
+
+    return (
+      <div className="py-2">
+        <div className="relative">
+          <svg className="w-full h-[110px]" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f97316" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#f97316" stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+            <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
+            <line x1={padding} y1={padding + chartHeight / 2} x2={width - padding} y2={padding + chartHeight / 2} stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
+            <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="rgba(255,255,255,0.1)" />
+
+            {areaPath && <path d={areaPath} fill="url(#chartGlow)" />}
+            {linePath && <path d={linePath} fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" />}
+
+            {points.map((p, idx) => (
+              <g key={idx}>
+                <circle cx={p.x} cy={p.y} r="4" fill="#ffffff" stroke="#f97316" strokeWidth="2" />
+                <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#f97316" className="text-[8px] font-bold font-mono">
+                  {p.count}
+                </text>
+              </g>
+            ))}
+          </svg>
+        </div>
+
+        <div className="flex justify-between px-3 text-[9px] uppercase tracking-wider text-slate-500 font-mono mt-1">
+          {items.map((item, idx) => (
+            <span key={idx} className="truncate max-w-[60px]" title={item.source}>{item.source || "unknown"}</span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-h-64 overflow-auto text-xs py-2">
+      <table className="w-full text-slate-300">
+        <thead>
+          <tr className="border-b border-white/10 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+            <th className="text-left pb-1.5">Source Stream</th>
+            <th className="text-right pb-1.5">Telemetry Count</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {(data.bySource || []).map((r, idx) => (
+            <tr key={r.source || idx} className="hover:bg-white/5 transition-colors">
+              <td className="py-2 text-slate-300 font-medium">{r.source || "unknown"}</td>
+              <td className="py-2 text-right text-orange-400 font-mono font-bold">{r._count._all}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
